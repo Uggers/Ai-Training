@@ -1,0 +1,168 @@
+{
+  "cells": [
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "install-dependencies",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Install necessary libraries\n",
+        "!pip install --upgrade gdown\n",
+        "!pip install torch torchvision\n",
+        "!pip install diffusers==0.27.1\n",
+        "!pip install accelerate==0.28.0\n",
+        "!pip install transformers==4.35.2\n",
+        "!pip install google-colab\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "import-libraries",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Import necessary libraries\n",
+        "import os\n",
+        "from google.colab import drive\n",
+        "from diffusers import StableDiffusionPipeline, ControlNetModel\n",
+        "from transformers import CLIPProcessor, CLIPModel\n",
+        "import torch\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "mount-google-drive",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Mount Google Drive\n",
+        "drive.mount('/content/drive')\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "define-paths",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Define paths for dataset, model, and output\n",
+        "drive_root = '/content/drive/MyDrive'\n",
+        "project_name = 'your_project_name_here'  # Change to your specific project name\n",
+        "dataset_dir = os.path.join(drive_root, 'SD Images/1024jpg')\n",
+        "output_dir = os.path.join(drive_root, 'SD Images/output')\n",
+        "model_save_dir = os.path.join(drive_root, 'SD Images/Models')\n",
+        "\n",
+        "# Ensure directories exist\n",
+        "os.makedirs(output_dir, exist_ok=True)\n",
+        "os.makedirs(model_save_dir, exist_ok=True)\n",
+        "\n",
+        "# Check contents of dataset directory\n",
+        "print('Dataset files:', os.listdir(dataset_dir))\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "load-models",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Load the Stable Diffusion pipeline and the ControlNet model\n",
+        "sd_model_id = 'pt-sk/stable-diffusion-1.5'  # Model ID on Hugging Face\n",
+        "controlnet_id = 'controlnet_model_id_here'  # Placeholder for ControlNet model ID\n",
+        "\n",
+        "# Load models from Hugging Face\n",
+        "pipe = StableDiffusionPipeline.from_pretrained(sd_model_id, torch_dtype=torch.float16).to('cuda')\n",
+        "controlnet = ControlNetModel.from_pretrained(controlnet_id, torch_dtype=torch.float16).to('cuda')\n",
+        "\n",
+        "# Apply ControlNet to the pipeline\n",
+        "pipe.controlnet = controlnet\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "setup-image-processing",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Define image processing parameters\n",
+        "def process_image(input_image_path, output_image_path):\n",
+        "    # Load and preprocess the image\n",
+        "    image = pipe.load_image(input_image_path)\n",
+        "    # Run the pipeline with the input image\n",
+        "    result = pipe(image=image)\n",
+        "    # Save the output\n",
+        "    result.images[0].save(output_image_path)\n",
+        "\n",
+        "# Test process on a sample image\n",
+        "sample_image = os.path.join(dataset_dir, 'sample_image_01.jpg')\n",
+        "output_image = os.path.join(output_dir, 'output_image_01.jpg')\n",
+        "process_image(sample_image, output_image)\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "load-lora",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Load LoRA model from Google Drive\n",
+        "lora_model_path = os.path.join(model_save_dir, 'bootlicker.safetensors')\n",
+        "pipe.load_lora_weights(lora_model_path)\n",
+        "\n",
+        "# Check that LoRA is applied\n",
+        "print('LoRA model loaded successfully')\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "process-batch",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Process a batch of images\n",
+        "for i in range(1, 50):\n",
+        "    input_image = os.path.join(dataset_dir, f'sample_image_{i:02d}.jpg')\n",
+        "    output_image = os.path.join(output_dir, f'output_image_{i:02d}.jpg')\n",
+        "    process_image(input_image, output_image)\n",
+        "    print(f'Processed image {i:02d}')\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "define-save-model",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Function to save the model back to Google Drive\n",
+        "def save_model(model, output_dir):\n",
+        "    model.save_pretrained(output_dir)\n",
+        "    print(f'Model saved at {output_dir}')\n",
+        "\n",
+        "# Save the updated pipeline with LoRA\n",
+        "save_model(pipe, model_save_dir)\n"
+      ]
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "display_name": "Python 3",
+      "language": "python",
+      "name": "python3"
+    },
+    "language_info": {
+      "name": "python",
+      "version": "3.9"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}
